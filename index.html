@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SmartLearn — AI-Integrated LMS</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --indigo:#6366F1;
+    --indigo-dark:#4F46E5;
+    --indigo-tint:#EEF2FF;
+    --indigo-tint-2:#F1E7FF;
+    --green:#16A34A;
+    --green-tint:#F0FDF4;
+    --orange:#F59E0B;
+    --orange-tint:#FFF7ED;
+    --ink:#1E293B;
+    --ink-soft:#475569;
+    --ink-faint:#94A3B8;
+    --line:#E5E9F0;
+    --bg:#F8F9FC;
+    --card:#FFFFFF;
+    --shadow: 0 1px 2px rgba(15,23,42,.04), 0 8px 24px -12px rgba(15,23,42,.08);
+    --radius:16px;
+  }
+  :root:not([data-theme="light"]){ }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --ink:#EEF1F8; --ink-soft:#B7C0D1; --ink-faint:#7C879C;
+      --line:#242B3A; --bg:#0E121B; --card:#151A26;
+      --indigo-tint:#191D33; --indigo-tint-2:#211A38;
+      --green-tint:#0E2018; --orange-tint:#241A0E;
+    }
+  }
+  :root[data-theme="dark"]{
+    --ink:#EEF1F8; --ink-soft:#B7C0D1; --ink-faint:#7C879C;
+    --line:#242B3A; --bg:#0E121B; --card:#151A26;
+    --indigo-tint:#191D33; --indigo-tint-2:#211A38;
+    --green-tint:#0E2018; --orange-tint:#241A0E;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{
+    background:var(--bg); color:var(--ink);
+    font-family:'Inter',sans-serif;
+    min-height:100vh;
+  }
+  h1,h2,h3,.brand,.navlink,.btn,.section-title{ font-family:'Poppins',sans-serif; }
+  a{color:inherit; text-decoration:none;}
+  button{font-family:inherit; cursor:pointer;}
+  ::-webkit-scrollbar{width:8px; height:8px;}
+  ::-webkit-scrollbar-thumb{background:var(--line); border-radius:8px;}
+
+  /* ---------- topbar ---------- */
+  .topbar{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:14px 28px; background:var(--card); border-bottom:1px solid var(--line);
+    position:sticky; top:0; z-index:30;
+  }
+  .brand{display:flex; align-items:center; gap:10px;}
+  .brand .mark{
+    width:38px; height:38px; border-radius:11px;
+    background:linear-gradient(135deg,var(--indigo),#8B5CF6);
+    display:flex; align-items:center; justify-content:center;
+    color:#fff; font-size:19px;
+  }
+  .brand .word{font-weight:700; font-size:17px; line-height:1.1;}
+  .brand .sub{font-size:11px; color:var(--ink-faint); font-weight:500;}
+  .navlinks{display:flex; gap:6px;}
+  .navlink{
+    padding:9px 14px; border-radius:9px; font-size:14px; font-weight:500;
+    color:var(--ink-soft);
+  }
+  .navlink.active{color:var(--indigo); background:var(--indigo-tint); font-weight:600;}
+  .navlink:hover:not(.active){background:var(--bg);}
+  .topbar-right{display:flex; align-items:center; gap:14px;}
+  .icon-btn{
+    width:38px; height:38px; border-radius:10px; border:1px solid var(--line);
+    background:var(--card); display:flex; align-items:center; justify-content:center;
+    position:relative; color:var(--ink-soft); font-size:15px;
+  }
+  .badge{
+    position:absolute; top:-4px; right:-4px; background:#EF4444; color:#fff;
+    font-size:9px; font-weight:700; width:16px; height:16px; border-radius:50%;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .profile{display:flex; align-items:center; gap:9px;}
+  .avatar{
+    width:38px; height:38px; border-radius:50%;
+    background:linear-gradient(135deg,#818CF8,#6366F1);
+    color:#fff; font-weight:700; font-size:14px;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .profile .name{font-size:13.5px; font-weight:600;}
+  .profile .role{font-size:11px; color:var(--ink-faint);}
+
+  /* ---------- layout ---------- */
+  .layout{display:flex; align-items:flex-start;}
+  .sidebar{
+    width:222px; flex-shrink:0; padding:20px 14px; position:sticky; top:65px;
+    height:calc(100vh - 65px); display:flex; flex-direction:column; justify-content:space-between;
+    border-right:1px solid var(--line);
+  }
+  .side-nav{display:flex; flex-direction:column; gap:3px;}
+  .side-link{
+    display:flex; align-items:center; gap:12px; padding:11px 14px; border-radius:10px;
+    font-size:14px; font-weight:500; color:var(--ink-soft);
+  }
+  .side-link .ico{width:18px; text-align:center; font-size:15px;}
+  .side-link.active{background:var(--indigo-tint-2); color:var(--indigo-dark); font-weight:600;}
+  .side-link:hover:not(.active){background:var(--bg);}
+  .lang-card{
+    background:var(--indigo-tint); border-radius:14px; padding:16px; margin-top:16px;
+  }
+  .lang-card p{font-size:12.5px; color:var(--ink-soft); line-height:1.5; margin-bottom:12px;}
+  .lang-card strong{display:block; color:var(--indigo-dark); font-size:13px; margin-bottom:4px;}
+  .lang-btn{
+    width:100%; padding:8px; border-radius:9px; border:1px solid var(--indigo);
+    background:var(--card); color:var(--indigo-dark); font-size:12px; font-weight:600;
+  }
+
+  .main{flex:1; padding:24px 28px 60px; min-width:0;}
+  .content-grid{display:grid; grid-template-columns:1fr 340px; gap:22px; align-items:start;}
+
+  /* ---------- banner ---------- */
+  .banner{
+    background:linear-gradient(120deg,var(--indigo-tint) 0%, var(--indigo-tint-2) 100%);
+    border-radius:var(--radius); padding:26px 30px; display:flex; align-items:center;
+    justify-content:space-between; margin-bottom:22px; overflow:hidden;
+  }
+  .banner h1{font-size:23px; margin-bottom:6px;}
+  .banner p{font-size:13.5px; color:var(--ink-soft);}
+  .banner .wave{display:inline-block; animation:wave 1.6s ease-in-out infinite;}
+  @keyframes wave{0%,100%{transform:rotate(0)}25%{transform:rotate(18deg)}75%{transform:rotate(-10deg)}}
+  .banner-art{font-size:52px; flex-shrink:0; margin-left:16px;}
+
+  .card{
+    background:var(--card); border:1px solid var(--line); border-radius:var(--radius);
+    padding:20px; box-shadow:var(--shadow);
+  }
+  .section{margin-bottom:22px;}
+  .section-head{display:flex; align-items:center; justify-content:space-between; margin-bottom:14px;}
+  .section-head h2{font-size:16.5px;}
+  .section-head .view-all{font-size:12.5px; color:var(--indigo); font-weight:600;}
+  .section-sub{font-size:12px; color:var(--ink-faint); margin-top:-8px; margin-bottom:14px;}
+
+  .grid3{display:grid; grid-template-columns:repeat(3,1fr); gap:16px;}
+
+  .course-card{padding:18px;}
+  .course-top{display:flex; align-items:flex-start; gap:12px; margin-bottom:14px;}
+  .course-ico{
+    width:42px; height:42px; border-radius:11px; display:flex; align-items:center;
+    justify-content:center; font-size:19px; flex-shrink:0;
+  }
+  .course-card h3{font-size:14px; line-height:1.35;}
+  .progress-track{height:6px; background:var(--bg); border-radius:6px; overflow:hidden; margin:10px 0 6px;}
+  .progress-fill{height:100%; border-radius:6px;}
+  .course-pct{font-size:11.5px; font-weight:600; color:var(--ink-soft);}
+  .course-next{font-size:11.5px; color:var(--ink-faint); margin-bottom:12px;}
+  .btn{
+    width:100%; padding:9px; border-radius:9px; border:none; font-size:12.5px; font-weight:600;
+  }
+
+  .rec-card{padding:16px;}
+  .rec-top{display:flex; align-items:center; gap:9px; margin-bottom:10px;}
+  .rec-ico{width:32px; height:32px; border-radius:9px; display:flex; align-items:center; justify-content:center; font-size:15px;}
+  .rec-card h4{font-size:13.5px;}
+  .rec-tag{font-size:10.5px; color:var(--ink-faint); font-weight:600;}
+  .rec-card p{font-size:11.5px; color:var(--ink-soft); line-height:1.4; margin-bottom:12px; min-height:32px;}
+  .btn-outline{background:transparent; border:1px solid currentColor;}
+
+  .quiz-card{display:flex; align-items:center; justify-content:space-between; padding:18px 22px;}
+  .quiz-left{display:flex; align-items:center; gap:14px;}
+  .quiz-ico{width:40px; height:40px; border-radius:10px; background:var(--indigo-tint); color:var(--indigo); display:flex; align-items:center; justify-content:center; font-size:17px;}
+  .quiz-card h4{font-size:14px; margin-bottom:2px;}
+  .quiz-card .sub{font-size:12px; color:var(--ink-faint);}
+  .quiz-meta{font-size:11px; color:var(--ink-faint); text-align:right; line-height:1.4;}
+  .quiz-btn{background:var(--indigo); color:#fff; padding:10px 22px; border-radius:9px; font-size:13px; font-weight:600; margin:0 18px;}
+
+  .strip{display:flex; gap:14px; margin-top:22px; flex-wrap:wrap;}
+  .strip-item{flex:1; min-width:190px; display:flex; gap:11px; align-items:flex-start; padding:6px 4px;}
+  .strip-ico{width:34px; height:34px; border-radius:9px; display:flex; align-items:center; justify-content:center; font-size:15px; flex-shrink:0;}
+  .strip-item h5{font-size:12.5px; margin-bottom:2px;}
+  .strip-item p{font-size:11px; color:var(--ink-faint); line-height:1.4;}
+
+  /* ---------- right rail ---------- */
+  .rail-card{margin-bottom:20px;}
+  .tutor-head{display:flex; align-items:center; justify-content:space-between; margin-bottom:14px;}
+  .tutor-head h3{font-size:15px; display:flex; align-items:center; gap:8px;}
+  .status-pill{
+    font-size:10.5px; font-weight:600; color:var(--green); background:var(--green-tint);
+    padding:4px 10px; border-radius:20px; display:flex; align-items:center; gap:5px;
+  }
+  .status-pill .dot{width:6px; height:6px; border-radius:50%; background:var(--green);}
+  .chat-scroll{display:flex; flex-direction:column; gap:12px; max-height:300px; overflow-y:auto; margin-bottom:12px; padding-right:2px;}
+  .msg{display:flex; gap:8px; max-width:92%;}
+  .msg.me{align-self:flex-end; flex-direction:row-reverse;}
+  .msg .bubble-ico{
+    width:26px; height:26px; border-radius:50%; flex-shrink:0; font-size:12px;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .msg.bot .bubble-ico{background:var(--indigo-tint); color:var(--indigo);}
+  .msg.me .bubble-ico{background:var(--indigo); color:#fff;}
+  .bubble{
+    background:var(--bg); padding:10px 13px; border-radius:12px; font-size:12.5px; line-height:1.5;
+  }
+  .msg.me .bubble{background:var(--indigo); color:#fff;}
+  .bubble .src{
+    margin-top:8px; padding-top:8px; border-top:1px solid var(--line); font-size:10.5px; color:var(--ink-faint);
+  }
+  .msg.me .bubble .src{border-color:rgba(255,255,255,.25);}
+  .bubble .src a{color:var(--indigo); font-weight:600;}
+  .msg.me .bubble .src a{color:#fff; text-decoration:underline;}
+  .chat-input{display:flex; align-items:center; gap:8px; border:1px solid var(--line); border-radius:11px; padding:6px 6px 6px 14px;}
+  .chat-input input{flex:1; border:none; outline:none; background:transparent; font-size:12.5px; color:var(--ink); font-family:inherit;}
+  .chat-send{width:32px; height:32px; border-radius:9px; background:var(--indigo); color:#fff; border:none; display:flex; align-items:center; justify-content:center; flex-shrink:0;}
+
+  .progress-title{display:flex; align-items:center; justify-content:space-between; margin-bottom:14px;}
+  .progress-title h3{font-size:15px;}
+  .progress-title a{font-size:11.5px; color:var(--indigo); font-weight:600;}
+  .stat-row{display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:12px;}
+  .stat-box{background:var(--bg); border-radius:12px; padding:14px;}
+  .stat-box .lbl{font-size:11px; color:var(--ink-faint); font-weight:600; display:flex; align-items:center; gap:5px; margin-bottom:8px;}
+  .stat-box .val{font-size:21px; font-weight:700;}
+  .stat-box .unit{font-size:11px; color:var(--ink-faint); font-weight:500;}
+  .stat-box .val.good{color:var(--green);}
+  .topics-box{background:var(--bg); border-radius:12px; padding:14px; display:flex; align-items:center; justify-content:space-between;}
+  .topics-box .lbl{font-size:11.5px; font-weight:600; color:var(--ink-soft); margin-bottom:8px;}
+  .topics-box .val{font-size:19px; font-weight:700;}
+  .topics-track{width:100%; height:6px; background:var(--line); border-radius:6px; margin-top:8px;}
+  .topics-fill{height:100%; width:47%; background:var(--indigo); border-radius:6px;}
+
+  footer{text-align:center; padding:26px; font-size:11.5px; color:var(--ink-faint); border-top:1px solid var(--line);}
+  footer b{color:var(--ink-soft);}
+
+  @media (max-width: 980px){
+    .content-grid{grid-template-columns:1fr;}
+    .sidebar{display:none;}
+    .grid3{grid-template-columns:1fr 1fr;}
+  }
+  @media (max-width: 680px){
+    .navlinks{display:none;}
+    .grid3{grid-template-columns:1fr;}
+    .quiz-card{flex-direction:column; align-items:flex-start; gap:12px;}
+    .quiz-btn{margin:0;}
+    .banner{flex-direction:column; align-items:flex-start; gap:10px;}
+    .strip{flex-direction:column;}
+  }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="brand">
+    <div class="mark">🎓</div>
+    <div>
+      <div class="word">SmartLearn</div>
+      <div class="sub">AI-Powered Learning</div>
+    </div>
+  </div>
+  <div class="navlinks">
+    <a class="navlink active" href="#">Dashboard</a>
+    <a class="navlink" href="#">My Courses</a>
+    <a class="navlink" href="#">AI Tutor</a>
+    <a class="navlink" href="#">Quizzes</a>
+    <a class="navlink" href="#">Progress</a>
+  </div>
+  <div class="topbar-right">
+    <button class="icon-btn" title="Notifications">🔔<span class="badge">3</span></button>
+    <div class="profile">
+      <div class="avatar">AK</div>
+      <div>
+        <div class="name">Alex Kumar</div>
+        <div class="role">Student</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="layout">
+  <aside class="sidebar">
+    <nav class="side-nav">
+      <a class="side-link active" href="#"><span class="ico">🏠</span> Dashboard</a>
+      <a class="side-link" href="#"><span class="ico">📘</span> My Courses</a>
+      <a class="side-link" href="#"><span class="ico">🤖</span> AI Tutor</a>
+      <a class="side-link" href="#"><span class="ico">📝</span> Quizzes</a>
+      <a class="side-link" href="#"><span class="ico">📊</span> Progress</a>
+      <a class="side-link" href="#"><span class="ico">🗂️</span> Flashcards</a>
+      <a class="side-link" href="#"><span class="ico">📚</span> Study Material</a>
+      <a class="side-link" href="#"><span class="ico">⚙️</span> Settings</a>
+    </nav>
+    <div class="lang-card">
+      <strong>Learn in your language</strong>
+      <p>Study in Hindi, Tamil, Telugu and more — powered by Bhashini.</p>
+      <button class="lang-btn" onclick="alert('Language switcher — demo only.')">🌐 Change language</button>
+    </div>
+  </aside>
+
+  <main class="main">
+    <div class="banner">
+      <div>
+        <h1>Good evening, Alex <span class="wave">👋</span></h1>
+        <p>Let's continue your learning journey.</p>
+      </div>
+      <div class="banner-art">🧑‍💻</div>
+    </div>
+
+    <div class="content-grid">
+      <div>
+        <div class="section">
+          <div class="section-head">
+            <h2>Continue Learning</h2>
+            <a class="view-all" href="#">View all courses →</a>
+          </div>
+          <div class="grid3" id="courseGrid"></div>
+        </div>
+
+        <div class="section">
+          <div class="section-head"><h2>⭐ Recommended for You</h2></div>
+          <div class="section-sub">Topics recommended by AI based on your performance</div>
+          <div class="grid3" id="recGrid"></div>
+        </div>
+
+        <div class="card quiz-card">
+          <div class="quiz-left">
+            <div class="quiz-ico">📋</div>
+            <div>
+              <h4>Quick Quiz</h4>
+              <div class="sub">Test your knowledge with a 5-minute quiz</div>
+            </div>
+          </div>
+          <button class="quiz-btn" onclick="startQuiz()">Start Quiz</button>
+          <div class="quiz-meta">5 Questions<br>5 Minutes</div>
+        </div>
+
+        <div class="strip">
+          <div class="strip-item"><div class="strip-ico" style="background:var(--indigo-tint);color:var(--indigo)">🗣️</div><div><h5>Learn in Your Language</h5><p>Bhashini integration for seamless translation and TTS</p></div></div>
+          <div class="strip-item"><div class="strip-ico" style="background:var(--green-tint);color:var(--green)">🛡️</div><div><h5>Syllabus-Aligned AI</h5><p>Answers strictly from your syllabus and materials</p></div></div>
+          <div class="strip-item"><div class="strip-ico" style="background:var(--orange-tint);color:var(--orange)">📈</div><div><h5>Smart Analytics</h5><p>Track your progress and identify weak topics</p></div></div>
+          <div class="strip-item"><div class="strip-ico" style="background:var(--indigo-tint-2);color:#7C3AED">🕐</div><div><h5>24/7 AI Tutor</h5><p>Get instant doubt resolution anytime, anywhere</p></div></div>
+        </div>
+      </div>
+
+      <div>
+        <div class="card rail-card">
+          <div class="tutor-head">
+            <h3>🤖 AI Tutor</h3>
+            <div class="status-pill"><span class="dot"></span>Online</div>
+          </div>
+          <div class="chat-scroll" id="chatScroll">
+            <div class="msg bot">
+              <div class="bubble-ico">🤖</div>
+              <div class="bubble">Hi Alex! I'm your AI tutor. Ask me anything from your syllabus.</div>
+            </div>
+            <div class="msg me">
+              <div class="bubble-ico">A</div>
+              <div class="bubble">Can you explain time complexity of binary search?</div>
+            </div>
+            <div class="msg bot">
+              <div class="bubble-ico">🤖</div>
+              <div class="bubble">
+                Binary Search has a time complexity of O(log n) because the search space is reduced by half in each step.
+                <div class="src">📄 Source: <a href="#">DSA Notes.pdf (Page 45)</a></div>
+              </div>
+            </div>
+          </div>
+          <div class="chat-input">
+            <input id="chatInput" type="text" placeholder="Ask a question..." onkeydown="if(event.key==='Enter')sendMsg()">
+            <button class="chat-send" onclick="sendMsg()">➤</button>
+          </div>
+        </div>
+
+        <div class="card rail-card">
+          <div class="progress-title">
+            <h3>Your Progress</h3>
+            <a href="#">View detailed report →</a>
+          </div>
+          <div class="stat-row">
+            <div class="stat-box">
+              <div class="lbl">🔥 Learning Streak</div>
+              <div class="val">12 <span class="unit">days</span></div>
+            </div>
+            <div class="stat-box">
+              <div class="lbl">Overall Score</div>
+              <div class="val good">78% <span class="unit" style="color:var(--green)">Good</span></div>
+            </div>
+          </div>
+          <div class="topics-box">
+            <div>
+              <div class="lbl">Topics Completed</div>
+              <div class="val">32<span style="color:var(--ink-faint); font-weight:500;">/68</span></div>
+              <div class="topics-track"><div class="topics-fill"></div></div>
+            </div>
+            <div style="font-size:30px;">📚</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<footer>Built for <b>Smart India Hackathon 2026</b> · Team AKAZA · SIH262070/500 — AI-Integrated LMS for Smart Education</footer>
+
+<script>
+  const courses = [
+    {icon:'💻',bg:'var(--indigo-tint)',fg:'var(--indigo)',title:'Data Structures and Algorithms',pct:68,next:'Binary Trees',barBg:'var(--indigo)'},
+    {icon:'🗄️',bg:'var(--green-tint)',fg:'var(--green)',title:'Database Management Systems',pct:45,next:'Normalization',barBg:'var(--green)'},
+    {icon:'🌐',bg:'var(--orange-tint)',fg:'var(--orange)',title:'Web Development Fundamentals',pct:30,next:'CSS Flexbox',barBg:'var(--orange)'},
+  ];
+  const courseGrid = document.getElementById('courseGrid');
+  courses.forEach(c=>{
+    const el = document.createElement('div');
+    el.className = 'card course-card';
+    el.innerHTML = `
+      <div class="course-top">
+        <div class="course-ico" style="background:${c.bg}; color:${c.fg}">${c.icon}</div>
+        <h3>${c.title}</h3>
+      </div>
+      <div class="course-pct">${c.pct}% Complete</div>
+      <div class="progress-track"><div class="progress-fill" style="width:${c.pct}%; background:${c.barBg}"></div></div>
+      <div class="course-next" style="margin-top:8px;">Next: ${c.next}</div>
+      <button class="btn" style="background:${c.bg}; color:${c.fg}" onclick="alert('Resuming: ${c.title}')">▶ Resume</button>
+    `;
+    courseGrid.appendChild(el);
+  });
+
+  const recs = [
+    {icon:'🔁',bg:'var(--indigo-tint)',fg:'var(--indigo)',tag:'DSA',title:'Recursion Concepts',desc:'Strengthen your understanding of recursion with examples.'},
+    {icon:'🔗',bg:'var(--green-tint)',fg:'var(--green)',tag:'DBMS',title:'SQL Joins',desc:'You struggled in last quiz. Revise and practice more.'},
+    {icon:'▦',bg:'var(--orange-tint)',fg:'var(--orange)',tag:'Web Dev',title:'CSS Grid',desc:'Learn CSS Grid to build modern layouts.'},
+  ];
+  const recGrid = document.getElementById('recGrid');
+  recs.forEach(r=>{
+    const el = document.createElement('div');
+    el.className = 'card rec-card';
+    el.innerHTML = `
+      <div class="rec-top">
+        <div class="rec-ico" style="background:${r.bg}; color:${r.fg}">${r.icon}</div>
+        <div>
+          <h4>${r.title}</h4>
+          <div class="rec-tag">${r.tag}</div>
+        </div>
+      </div>
+      <p>${r.desc}</p>
+      <button class="btn btn-outline" style="color:${r.fg}" onclick="alert('Starting: ${r.title}')">Start Learning</button>
+    `;
+    recGrid.appendChild(el);
+  });
+
+  function startQuiz(){ alert('Starting Quick Quiz — 5 questions, 5 minutes. (Demo)'); }
+
+  const canned = [
+    {q:'time', a:'Time complexity measures how runtime grows with input size — e.g. O(n) means it grows linearly.'},
+    {q:'recursion', a:'Recursion is when a function calls itself to break a problem into smaller sub-problems, with a base case to stop.'},
+    {q:'sql', a:'A SQL JOIN combines rows from two or more tables based on a related column between them.'},
+  ];
+  function sendMsg(){
+    const input = document.getElementById('chatInput');
+    const text = input.value.trim();
+    if(!text) return;
+    const scroll = document.getElementById('chatScroll');
+    const me = document.createElement('div');
+    me.className = 'msg me';
+    me.innerHTML = `<div class="bubble-ico">A</div><div class="bubble">${text.replace(/</g,'&lt;')}</div>`;
+    scroll.appendChild(me);
+    input.value = '';
+    scroll.scrollTop = scroll.scrollHeight;
+    setTimeout(()=>{
+      const hit = canned.find(c=>text.toLowerCase().includes(c.q));
+      const reply = hit ? hit.a : "That's a great question — in the full build, I'd answer strictly from your uploaded syllabus using RAG, with a source citation.";
+      const bot = document.createElement('div');
+      bot.className = 'msg bot';
+      bot.innerHTML = `<div class="bubble-ico">🤖</div><div class="bubble">${reply}</div>`;
+      scroll.appendChild(bot);
+      scroll.scrollTop = scroll.scrollHeight;
+    }, 500);
+  }
+</script>
+</body>
+</html>

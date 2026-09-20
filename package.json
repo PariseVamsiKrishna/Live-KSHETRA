@@ -1,0 +1,12 @@
+{
+  "name": "live-kshetra",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Secure, Real-Time Video Collaboration — powered by Supabase Realtime + WebRTC",
+  "scripts": {
+    "dev": "cd client && npm run dev",
+    "build": "cd client && npm run build",
+    "preview": "cd client && npm run preview",
+    "install:all": "cd client && npm install"
+  }
+}

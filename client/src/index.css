@@ -1,0 +1,193 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    box-sizing: border-box;
+  }
+
+  body {
+    background-color: #0f1117;
+    color: #f0f2f5;
+    font-family: 'Google Sans', 'Roboto', sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    height: 100vh;
+  }
+
+  #root {
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: #3a3f4b; border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: #9ca3af; }
+}
+
+@layer components {
+  /* ── Live Kshetra button styles ───────────────────────────── */
+  .meet-btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-full font-medium transition-all duration-200 cursor-pointer select-none;
+  }
+
+  .meet-btn-primary {
+    @apply meet-btn text-white px-6 py-2.5 hover:opacity-90 hover:shadow-lg text-sm;
+    background: linear-gradient(135deg, #FF9933, #e6821a);
+  }
+
+  .meet-btn-secondary {
+    @apply meet-btn border border-meet-border text-live-saffron px-6 py-2.5 hover:bg-meet-surface text-sm;
+  }
+
+  .meet-btn-ghost {
+    @apply meet-btn text-meet-text px-4 py-2 hover:bg-meet-surface text-sm;
+  }
+
+  .meet-btn-danger {
+    @apply meet-btn bg-meet-red text-white px-6 py-2.5 hover:bg-red-600 text-sm;
+  }
+
+  /* ── Control dock ─────────────────────────────────────────── */
+  .dock-btn {
+    @apply w-12 h-12 rounded-full flex items-center justify-center cursor-pointer transition-all duration-200 text-meet-text hover:bg-meet-surfaceLight;
+  }
+
+  .dock-btn-active {
+    @apply dock-btn text-white;
+    background: linear-gradient(135deg, #FF9933, #e6821a);
+  }
+
+  .dock-btn-danger {
+    @apply dock-btn bg-meet-red text-white hover:bg-red-600;
+  }
+
+  .dock-btn-muted {
+    @apply dock-btn bg-meet-red text-white hover:bg-red-600;
+  }
+
+  /* ── Sidebar ──────────────────────────────────────────────── */
+  .sidebar-panel {
+    @apply w-80 h-full flex flex-col bg-meet-bg border-l border-meet-border animate-slide-in-right;
+  }
+
+  /* ── Participant tile ─────────────────────────────────────── */
+  .participant-tile {
+    @apply relative rounded-xl overflow-hidden bg-meet-tile flex items-center justify-center;
+  }
+
+  /* ── Glass overlay ────────────────────────────────────────── */
+  .glass {
+    @apply bg-black bg-opacity-40 backdrop-blur-md;
+  }
+
+  /* ── Input ────────────────────────────────────────────────── */
+  .meet-input {
+    @apply bg-transparent border border-meet-border rounded-lg px-4 py-3 text-meet-text placeholder-meet-textSoft focus:outline-none transition-colors text-sm w-full;
+    &:focus { border-color: #FF9933; }
+  }
+
+  /* ── Modals ───────────────────────────────────────────────── */
+  .modal-backdrop {
+    @apply fixed inset-0 bg-black bg-opacity-60 backdrop-blur-sm flex items-center justify-center z-50 animate-fade-in;
+  }
+
+  .modal-box {
+    @apply bg-meet-surface rounded-2xl p-6 shadow-2xl animate-pop-in max-w-md w-full mx-4 border border-meet-border;
+  }
+
+  /* ── Floating reaction ────────────────────────────────────── */
+  .floating-reaction {
+    @apply fixed pointer-events-none text-4xl animate-float-up z-50;
+  }
+}
+
+/* ── Video grid layouts ─────────────────────────────────────── */
+.video-grid {
+  display: grid;
+  gap: 8px;
+  width: 100%;
+  height: 100%;
+}
+
+.video-grid[data-count="1"]  { grid-template-columns: 1fr; grid-template-rows: 1fr; }
+.video-grid[data-count="2"]  { grid-template-columns: 1fr 1fr; grid-template-rows: 1fr; }
+.video-grid[data-count="3"]  { grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; }
+.video-grid[data-count="3"] .participant-tile:first-child { grid-column: 1 / -1; }
+.video-grid[data-count="4"]  { grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; }
+.video-grid[data-count="5"],
+.video-grid[data-count="6"]  { grid-template-columns: 1fr 1fr 1fr; grid-template-rows: 1fr 1fr; }
+.video-grid[data-count="7"],
+.video-grid[data-count="8"],
+.video-grid[data-count="9"]  { grid-template-columns: 1fr 1fr 1fr; grid-template-rows: 1fr 1fr 1fr; }
+.video-grid[data-count="10"],
+.video-grid[data-count="11"],
+.video-grid[data-count="12"] { grid-template-columns: 1fr 1fr 1fr 1fr; grid-template-rows: 1fr 1fr 1fr; }
+
+/* Spotlight / presenter view */
+.video-grid-spotlight {
+  display: grid;
+  grid-template-columns: 1fr 220px;
+  grid-template-rows: 1fr;
+  gap: 8px;
+  width: 100%;
+  height: 100%;
+}
+
+.spotlight-strip {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+/* ── Audio level bars ─────────────────────────────────────────── */
+@keyframes audio-bar {
+  0%, 100% { height: 4px; }
+  50%       { height: 16px; }
+}
+
+.audio-bar span {
+  display: inline-block;
+  width: 3px;
+  background: #FF9933;
+  border-radius: 2px;
+  animation: audio-bar 0.6s ease-in-out infinite;
+}
+.audio-bar span:nth-child(2) { animation-delay: 0.1s; }
+.audio-bar span:nth-child(3) { animation-delay: 0.2s; }
+.audio-bar span:nth-child(4) { animation-delay: 0.15s; }
+.audio-bar span:nth-child(5) { animation-delay: 0.05s; }
+
+/* ── Captions bar ─────────────────────────────────────────────── */
+.captions-bar {
+  background: rgba(0, 0, 0, 0.80);
+  backdrop-filter: blur(6px);
+  border-radius: 10px;
+  padding: 10px 18px;
+  max-width: 80%;
+  margin: 0 auto;
+  text-align: center;
+  border: 1px solid rgba(255, 153, 51, 0.2);
+}
+
+/* ── Whiteboard canvas ────────────────────────────────────────── */
+.whiteboard-canvas {
+  cursor: crosshair;
+  touch-action: none;
+}
+
+/* ── Lobby background — Live Kshetra saffron-indigo gradient ───── */
+.lobby-bg {
+  background:
+    radial-gradient(ellipse at 25% 35%, rgba(255, 153, 51, 0.08) 0%, transparent 55%),
+    radial-gradient(ellipse at 75% 65%, rgba(79, 70, 229, 0.06) 0%, transparent 55%),
+    #0f1117;
+}
