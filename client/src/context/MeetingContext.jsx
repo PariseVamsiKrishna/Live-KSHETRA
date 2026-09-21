@@ -34,6 +34,7 @@ export function MeetingProvider({ children }) {
   const [isHost, setIsHost]     = useState(false);
   const [roomLocked, setRoomLocked] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
+  const [currentUserId, setCurrentUserId] = useState(null);
 
   // ── Devices ──────────────────────────────────────────────────────────────────
   const [devices, setDevices]                 = useState({ audio: [], video: [] });
@@ -150,10 +151,22 @@ export function MeetingProvider({ children }) {
       setShowLeaveModal(false);
       setShowSettingsModal(false);
 
-      // 1. Get authenticated user
-      const { data: { user } } = await supabase.auth.getUser();
+      // 1. Get authenticated user and session
+      const { data: { session } } = await supabase.auth.getSession();
+      const user = session?.user;
       if (!user) throw new Error('Not authenticated. Enable Anonymous Sign-In in Supabase dashboard.');
       myUserIdRef.current = user.id;
+      setCurrentUserId(user.id);
+
+      // Explicitly set auth token on Realtime so RLS on realtime.messages recognizes auth.uid()
+      if (session.access_token) {
+        try {
+          await supabase.realtime.setAuth(session.access_token);
+          console.log('[Live Kshetra] Set Realtime auth token for user:', user.id);
+        } catch (authErr) {
+          console.warn('[Live Kshetra] realtime.setAuth warning:', authErr);
+        }
+      }
 
       const rId = rid || generateRoomId();
       setRoomId(rId);
@@ -190,9 +203,13 @@ export function MeetingProvider({ children }) {
       localStreamRef.current = lStream;
       setLocalStream(lStream);
 
-      // 5. Create Supabase private Realtime channel
+      // 5. Create Supabase private Realtime channel with explicit presence and broadcast settings
       const channel = supabase.channel(`room:${rId}`, {
-        config: { private: true },
+        config: {
+          private: true,
+          broadcast: { ack: true },
+          presence: { key: user.id },
+        },
       });
       channelRef.current = channel;
 
@@ -201,8 +218,17 @@ export function MeetingProvider({ children }) {
         channel,
         userId: user.id,
         localStream: lStream,
-        onRemoteStream:        (peerId, remoteStream) => setRemoteStreams((prev) => ({ ...prev, [peerId]: remoteStream })),
-        onRemoteStreamRemoved: (peerId)               => setRemoteStreams((prev) => { const n = { ...prev }; delete n[peerId]; return n; }),
+        onRemoteStream: (peerId, remoteStream) => {
+          console.log('[Live Kshetra] Received remote stream from:', peerId);
+          setRemoteStreams((prev) => ({ ...prev, [peerId]: remoteStream }));
+        },
+        onRemoteStreamRemoved: (peerId) => {
+          setRemoteStreams((prev) => {
+            const n = { ...prev };
+            delete n[peerId];
+            return n;
+          });
+        },
       });
 
       // 7. Speech recognition
@@ -226,7 +252,21 @@ export function MeetingProvider({ children }) {
 
       channel.on('presence', { event: 'sync' }, () => {
         const state = channel.presenceState();
-        setParticipants(presenceStateToParticipants(state));
+        const parts = presenceStateToParticipants(state);
+        setParticipants(parts);
+
+        // When a newcomer syncs and sees other users in the room:
+        parts.forEach((p) => {
+          if (p.id && p.id !== user.id) {
+            console.log('[Live Kshetra] Found existing peer via sync:', p.id);
+            // Broadcast peer-ready to announce ourselves to existing peer
+            channel.send({
+              type: 'broadcast',
+              event: 'peer-ready',
+              payload: { userId: user.id, name },
+            });
+          }
+        });
       });
 
       channel.on('presence', { event: 'join' }, ({ newPresences }) => {
@@ -234,16 +274,9 @@ export function MeetingProvider({ children }) {
         newPresences.forEach((p) => {
           if (p.userId && p.userId !== user.id) {
             hasNewPeer = true;
-            // ── WebRTC glare prevention ──────────────────────────────────────
-            // If BOTH sides call each other simultaneously (glare condition),
-            // both offers collide and the connection fails.
-            // Fix: only the peer with the SMALLER userId initiates the call.
-            // The peer with the LARGER userId waits to receive the offer.
-            if (user.id < p.userId) {
-              webrtcRef.current?.initiateCall(p.userId);
-            }
-            // The other peer (larger userId) will initiate to US, and our
-            // WebRTC manager's _handleOffer will answer automatically.
+            console.log('[Live Kshetra] Presence join from new peer:', p.userId);
+            // Initiate call to newly joined peer
+            webrtcRef.current?.initiateCall(p.userId);
           }
         });
         if (hasNewPeer) playJoin();
@@ -258,6 +291,14 @@ export function MeetingProvider({ children }) {
       });
 
       // ── Broadcast listeners ─────────────────────────────────────────────────
+
+      // When another peer announces they are ready to connect
+      channel.on('broadcast', { event: 'peer-ready' }, ({ payload }) => {
+        if (payload && payload.userId && payload.userId !== user.id) {
+          console.log('[Live Kshetra] Received peer-ready broadcast from:', payload.userId);
+          webrtcRef.current?.initiateCall(payload.userId);
+        }
+      });
 
       channel.on('broadcast', { event: 'chat' }, ({ payload }) => {
         setChatMessages((prev) => [...prev, payload]);
@@ -335,6 +376,7 @@ export function MeetingProvider({ children }) {
 
       // 9. Subscribe and track presence
       channel.subscribe(async (status) => {
+        console.log('[Live Kshetra] Channel subscribe status:', status);
         if (status === 'SUBSCRIBED') {
           await channel.track({
             userId:        user.id,
@@ -346,6 +388,15 @@ export function MeetingProvider({ children }) {
             isHost:        asHost,
           });
           setView('meeting');
+
+          // Broadcast peer-ready to announce to all existing peers
+          setTimeout(() => {
+            channel.send({
+              type: 'broadcast',
+              event: 'peer-ready',
+              payload: { userId: user.id, name },
+            });
+          }, 300);
         } else if (status === 'CHANNEL_ERROR') {
           setErrorMsg('Could not connect to the meeting room. Check your Supabase configuration.');
           setView('error');
@@ -562,6 +613,7 @@ export function MeetingProvider({ children }) {
     setShowSettingsModal(false); // ← Fix: same for settings modal
     setLocalUser({ name: '', audioOn: true, videoOn: true, handRaised: false, screenSharing: false, isHost: false, backgroundBlur: false });
     myUserIdRef.current = null;
+    setCurrentUserId(null);
     playLeave();
   }
 
@@ -619,6 +671,7 @@ export function MeetingProvider({ children }) {
     // Actions
     joinMeeting, getUserMedia, enumerateDevices,
     leaveMeeting, endMeeting, generateRoomId,
+    currentUserId,
   };
 
   return <MeetingContext.Provider value={value}>{children}</MeetingContext.Provider>;

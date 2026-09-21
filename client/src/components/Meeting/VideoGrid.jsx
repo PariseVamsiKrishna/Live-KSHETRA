@@ -3,7 +3,7 @@ import { useMeeting } from '../../context/MeetingContext';
 import ParticipantTile from './ParticipantTile';
 
 export default function VideoGrid() {
-  const { localUser, localStream, screenStream, participants, remoteStreams, pinnedId } = useMeeting();
+  const { localUser, localStream, screenStream, participants, remoteStreams, pinnedId, currentUserId } = useMeeting();
 
   // Build tile list: self + remote participants
   const selfParticipant = {
@@ -19,8 +19,9 @@ export default function VideoGrid() {
   const selfStream = localUser.screenSharing ? screenStream : localStream;
 
   // All tiles: [ { participant, stream, isSelf } ]
+  // Filter out 'self' and currentUserId so the local user is not rendered as a remote duplicate
   const remoteTiles = participants
-    .filter((p) => p.id !== 'self')
+    .filter((p) => p.id !== 'self' && p.id !== currentUserId)
     .map((p) => ({
       participant: p,
       stream: remoteStreams[p.id] || null,
