@@ -9,6 +9,9 @@
     "build": "vite build",
     "preview": "vite preview"
   },
+  "allowScripts": {
+    "esbuild": true
+  },
   "dependencies": {
     "@supabase/supabase-js": "^2.116.0",
     "clsx": "^2.1.0",
