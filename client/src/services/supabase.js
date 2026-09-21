@@ -4,9 +4,8 @@ const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
 if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
-  throw new Error(
-    '[Live Kshetra] Missing Supabase env vars.\n' +
-    'Create .env.local with VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY.'
+  console.warn(
+    '[Live Kshetra] Missing Supabase env vars — set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY.'
   );
 }
 

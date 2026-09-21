@@ -146,6 +146,10 @@ export function MeetingProvider({ children }) {
   // ─────────────────────────────────────────────────────────────────────────────
   const joinMeeting = useCallback(async ({ name, roomId: rid, stream, asHost = false }) => {
     try {
+      // Reset any stale modal state from a previous session
+      setShowLeaveModal(false);
+      setShowSettingsModal(false);
+
       // 1. Get authenticated user
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Not authenticated. Enable Anonymous Sign-In in Supabase dashboard.');
@@ -226,13 +230,23 @@ export function MeetingProvider({ children }) {
       });
 
       channel.on('presence', { event: 'join' }, ({ newPresences }) => {
-        // Initiate WebRTC call to each newly joined peer
+        let hasNewPeer = false;
         newPresences.forEach((p) => {
-          if (p.userId !== user.id) {
-            webrtcRef.current?.initiateCall(p.userId);
+          if (p.userId && p.userId !== user.id) {
+            hasNewPeer = true;
+            // ── WebRTC glare prevention ──────────────────────────────────────
+            // If BOTH sides call each other simultaneously (glare condition),
+            // both offers collide and the connection fails.
+            // Fix: only the peer with the SMALLER userId initiates the call.
+            // The peer with the LARGER userId waits to receive the offer.
+            if (user.id < p.userId) {
+              webrtcRef.current?.initiateCall(p.userId);
+            }
+            // The other peer (larger userId) will initiate to US, and our
+            // WebRTC manager's _handleOffer will answer automatically.
           }
         });
-        playJoin();
+        if (hasNewPeer) playJoin();
       });
 
       channel.on('presence', { event: 'leave' }, ({ leftPresences }) => {
@@ -544,6 +558,8 @@ export function MeetingProvider({ children }) {
     setIsRecording(false);
     setActivePanel(null);
     setPinnedId(null);
+    setShowLeaveModal(false);    // ← Fix: reset modal so it never shows on next join
+    setShowSettingsModal(false); // ← Fix: same for settings modal
     setLocalUser({ name: '', audioOn: true, videoOn: true, handRaised: false, screenSharing: false, isHost: false, backgroundBlur: false });
     myUserIdRef.current = null;
     playLeave();

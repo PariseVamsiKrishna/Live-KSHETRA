@@ -6,15 +6,10 @@ on:
   pull_request:
     branches: [main]
 
-env:
-  # Set in GitHub repo → Settings → Secrets → Actions
-  VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
-  VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
-
 jobs:
-  # ─── Job 1: Lint & Build ─────────────────────────────────────
+  # ─── Job 1: Build Check ─────────────────────────────────────────
   build:
-    name: Lint & Build
+    name: Build Check
     runs-on: ubuntu-latest
 
     steps:
@@ -36,41 +31,21 @@ jobs:
         run: npm run build
         working-directory: client
         env:
+          # Supabase env vars — set these in GitHub → Settings → Secrets → Actions
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
 
-      - name: Upload build artifact
+      - name: Upload dist artifact
         uses: actions/upload-artifact@v4
         with:
           name: live-kshetra-dist
           path: client/dist
           retention-days: 7
 
-  # ─── Job 2: Deploy to Vercel (main branch only) ─────────────
-  deploy:
-    name: Deploy to Vercel
-    runs-on: ubuntu-latest
-    needs: build
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Deploy to Vercel
-        uses: amondnet/vercel-action@v25
-        with:
-          vercel-token: ${{ secrets.VERCEL_TOKEN }}
-          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
-          vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
-          vercel-args: '--prod'
-          working-directory: ./
-
-# ─── Required GitHub Secrets ────────────────────────────────────
-# Go to: GitHub repo → Settings → Secrets and variables → Actions → New repository secret
+# ─── Vercel deploys automatically via GitHub integration ────────────────────
+# No extra deploy job needed — Vercel re-deploys on every push to main.
+# If you want GitHub Actions to ALSO trigger Vercel, add these secrets:
 #
-#   VITE_SUPABASE_URL       → https://zkfslsziahchshplgibt.supabase.co
-#   VITE_SUPABASE_ANON_KEY  → your anon key
-#   VERCEL_TOKEN            → from vercel.com/account/tokens
-#   VERCEL_ORG_ID           → from .vercel/project.json after `vercel link`
-#   VERCEL_PROJECT_ID       → from .vercel/project.json after `vercel link`
+#   VERCEL_TOKEN      → vercel.com → Account Settings → Tokens → Create
+#   VERCEL_ORG_ID     → .vercel/project.json (run `vercel link` locally first)
+#   VERCEL_PROJECT_ID → .vercel/project.json
