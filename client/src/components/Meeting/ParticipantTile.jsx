@@ -1,5 +1,15 @@
 import React, { useRef, useEffect, useState } from 'react';
-import { Mic, MicOff, Pin, PinOff, Volume2 } from 'lucide-react';
+import {
+  Mic,
+  MicOff,
+  Pin,
+  PinOff,
+  Volume2,
+  SignalHigh,
+  SignalMedium,
+  SignalLow,
+  SignalZero,
+} from 'lucide-react';
 import { useMeeting } from '../../context/MeetingContext';
 import { createAnalyser, getVolume } from '../../services/audio';
 
@@ -15,7 +25,7 @@ export default function ParticipantTile({
   const analyserRef = useRef(null);
   const volRef = useRef(null);
   const [audioBlocked, setAudioBlocked] = useState(false);
-  const { setPinnedId, localUser } = useMeeting();
+  const { setPinnedId, localUser, networkQuality } = useMeeting();
 
   const { name, audioOn, videoOn, handRaised, isHost, screenSharing } = participant || {};
   const displayName = isSelf ? `${localUser.name || name} (You)` : name;
@@ -76,6 +86,28 @@ export default function ParticipantTile({
     }
   };
 
+  // Signal strength calculation
+  let quality = isSelf ? null : (networkQuality[participant?.id] || null);
+  if (isSelf) {
+    const peerQualities = Object.values(networkQuality || {});
+    if (peerQualities.length > 0) {
+      const avgLevel = Math.round(
+        peerQualities.reduce((acc, q) => acc + (q.level || 0), 0) / peerQualities.length
+      );
+      quality = {
+        level: Math.max(1, avgLevel),
+        rtt: peerQualities[0]?.rtt || 30,
+        status: avgLevel >= 3 ? 'Excellent' : avgLevel === 2 ? 'Fair' : 'Poor',
+      };
+    } else {
+      quality = { level: 3, rtt: null, status: 'Ready' };
+    }
+  } else if (!quality) {
+    quality = stream
+      ? { level: 3, rtt: null, status: 'Connected' }
+      : { level: 0, rtt: null, status: 'Connecting...' };
+  }
+
   // Mirror self view
   const videoStyle = isSelf && !localUser.screenSharing
     ? { transform: 'scaleX(-1)' }
@@ -84,7 +116,7 @@ export default function ParticipantTile({
   return (
     <div
       ref={volRef}
-      className={`participant-tile group transition-all duration-300 ${
+      className={`participant-tile group transition-all duration-300 relative overflow-hidden select-none ${
         isSpotlight ? 'rounded-lg' : 'rounded-xl'
       }`}
       style={{ background: '#1e2129' }}
@@ -139,7 +171,7 @@ export default function ParticipantTile({
         </div>
       )}
 
-      {/* Name + host tag pill */}
+      {/* Name + host tag pill (Bottom Left) */}
       <div className="absolute bottom-2 left-2 flex items-center gap-1.5 z-10 pointer-events-none">
         <div className="bg-black/70 backdrop-blur-sm rounded-md px-2 py-0.5 flex items-center gap-1.5 text-xs text-white">
           {!audioOn && <MicOff className="w-3 h-3 text-meet-red" />}
@@ -148,14 +180,19 @@ export default function ParticipantTile({
         </div>
       </div>
 
-      {/* Hand raised badge */}
+      {/* Signal strength indicator (Bottom Right) */}
+      <div className="absolute bottom-2 right-2 z-10 pointer-events-auto">
+        <SignalStrengthBadge quality={quality} />
+      </div>
+
+      {/* Hand raised badge (Top Left) */}
       {handRaised && (
         <div className="absolute top-2 left-2 bg-live-saffron text-white rounded-full px-2.5 py-0.5 text-xs flex items-center gap-1 font-medium shadow-md animate-pop-in z-10">
           ✋ Hand raised
         </div>
       )}
 
-      {/* Pin button */}
+      {/* Pin button (Top Right) */}
       <button
         className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity bg-black/60 backdrop-blur-sm rounded-full p-1.5 hover:bg-black/80 z-10"
         onClick={(e) => {
@@ -172,6 +209,40 @@ export default function ParticipantTile({
         <div className="absolute top-2 left-1/2 -translate-x-1/2 bg-live-saffron text-white text-xs px-2.5 py-0.5 rounded-full font-medium shadow-md z-10">
           Presenting
         </div>
+      )}
+    </div>
+  );
+}
+
+function SignalStrengthBadge({ quality }) {
+  const level = quality?.level ?? 0;
+  const rtt = quality?.rtt;
+  const status = quality?.status || 'Connecting';
+
+  let icon = <SignalZero className="w-3 h-3 text-gray-400" />;
+  let colorClass = 'text-gray-400';
+
+  if (level >= 3) {
+    icon = <SignalHigh className="w-3 h-3 text-emerald-400" />;
+    colorClass = 'text-emerald-400';
+  } else if (level === 2) {
+    icon = <SignalMedium className="w-3 h-3 text-amber-400" />;
+    colorClass = 'text-amber-400';
+  } else if (level === 1) {
+    icon = <SignalLow className="w-3 h-3 text-rose-400" />;
+    colorClass = 'text-rose-400';
+  }
+
+  const tooltip = rtt ? `Connection: ${status} (${rtt} ms RTT)` : `Connection: ${status}`;
+
+  return (
+    <div
+      className="flex items-center gap-1 bg-black/70 backdrop-blur-sm rounded-md px-1.5 py-0.5 text-[10px] select-none shadow-sm cursor-help hover:bg-black/85 transition-colors"
+      title={tooltip}
+    >
+      {icon}
+      {rtt !== null && rtt !== undefined && (
+        <span className={`font-mono text-[9px] font-medium ${colorClass}`}>{rtt}ms</span>
       )}
     </div>
   );

@@ -35,6 +35,7 @@ export function MeetingProvider({ children }) {
   const [roomLocked, setRoomLocked] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const [currentUserId, setCurrentUserId] = useState(null);
+  const [networkQuality, setNetworkQuality] = useState({});
 
   // ── Devices ──────────────────────────────────────────────────────────────────
   const [devices, setDevices]                 = useState({ audio: [], video: [] });
@@ -231,6 +232,11 @@ export function MeetingProvider({ children }) {
         },
       });
 
+      // Start real-time network quality / signal strength monitor
+      webrtcRef.current.startStatsMonitor((stats) => {
+        setNetworkQuality(stats);
+      });
+
       // 7. Speech recognition
       speechRef.current = new SpeechService({
         onCaption: (text, isFinal) => {
@@ -254,19 +260,6 @@ export function MeetingProvider({ children }) {
         const state = channel.presenceState();
         const parts = presenceStateToParticipants(state);
         setParticipants(parts);
-
-        // When a newcomer syncs and sees other users in the room:
-        parts.forEach((p) => {
-          if (p.id && p.id !== user.id) {
-            console.log('[Live Kshetra] Found existing peer via sync:', p.id);
-            // Broadcast peer-ready to announce ourselves to existing peer
-            channel.send({
-              type: 'broadcast',
-              event: 'peer-ready',
-              payload: { userId: user.id, name },
-            });
-          }
-        });
       });
 
       channel.on('presence', { event: 'join' }, ({ newPresences }) => {
@@ -614,6 +607,7 @@ export function MeetingProvider({ children }) {
     setLocalUser({ name: '', audioOn: true, videoOn: true, handRaised: false, screenSharing: false, isHost: false, backgroundBlur: false });
     myUserIdRef.current = null;
     setCurrentUserId(null);
+    setNetworkQuality({});
     playLeave();
   }
 
@@ -672,6 +666,7 @@ export function MeetingProvider({ children }) {
     joinMeeting, getUserMedia, enumerateDevices,
     leaveMeeting, endMeeting, generateRoomId,
     currentUserId,
+    networkQuality,
   };
 
   return <MeetingContext.Provider value={value}>{children}</MeetingContext.Provider>;

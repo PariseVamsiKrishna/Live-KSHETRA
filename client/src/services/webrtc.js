@@ -1,6 +1,7 @@
 // WebRTC mesh manager — Supabase Realtime channel edition
-// Includes STUN + free TURN relay servers for cross-network (Mobile 4G/5G <-> WiFi) NAT traversal
-// Implements W3C Perfect Negotiation to completely eliminate glare/collisions
+// Includes STUN + TURN relay servers for cross-network (Mobile 4G/5G <-> WiFi) NAT traversal
+// Implements W3C Perfect Negotiation to eliminate glare
+// Provides real-time network quality & signal strength monitoring (RTT, packet loss)
 
 const ICE_SERVERS = [
   // Google Public STUN servers
@@ -39,7 +40,9 @@ class WebRTCManager {
     this.peers                  = {};         // { peerId: RTCPeerConnection }
     this._pendingCandidates     = {};         // { peerId: RTCIceCandidate[] } — buffer before remote desc set
     this._makingOffer           = {};         // { peerId: boolean } — track local offer creation
-    this._remoteStreams         = {};         // { peerId: MediaStream } — keep stream reference
+    this._remoteStreams         = {};         // { peerId: MediaStream } — keep track of media streams
+    this._statsInterval         = null;
+    this._lastCallAttempt       = {};         // { peerId: timestamp } — debounce calls
     this._setupChannelListeners();
   }
 
@@ -76,7 +79,7 @@ class WebRTCManager {
 
   // ── Create RTCPeerConnection for a given peer ─────────────────────────────
   _createPeerConnection(peerId) {
-    // If an existing connection exists and is already connected, don't recreate
+    // If an existing connection exists, close it cleanly first
     if (this.peers[peerId]) {
       try {
         this.peers[peerId].close();
@@ -97,16 +100,30 @@ class WebRTCManager {
 
     pc.ontrack = (event) => {
       console.log(`[WebRTC] Track received from ${peerId.slice(0, 8)}: ${event.track.kind}`);
-      // Reuse or create MediaStream for this peer
       let stream = this._remoteStreams[peerId];
       if (!stream) {
-        stream = event.streams[0] || new MediaStream();
+        stream = new MediaStream();
         this._remoteStreams[peerId] = stream;
       }
-      if (!stream.getTracks().includes(event.track)) {
+
+      // If a track of the same kind already exists, replace it
+      const existing = stream.getTracks().find((t) => t.kind === event.track.kind);
+      if (existing && existing.id !== event.track.id) {
+        stream.removeTrack(existing);
+      }
+      if (!stream.getTracks().some((t) => t.id === event.track.id)) {
         stream.addTrack(event.track);
       }
-      this.onRemoteStream(peerId, stream);
+
+      // Re-trigger playback if track un-mutes
+      event.track.onunmute = () => {
+        console.log(`[WebRTC] Track unmuted from ${peerId.slice(0, 8)}: ${event.track.kind}`);
+        this.onRemoteStream(peerId, new MediaStream(stream.getTracks()));
+      };
+
+      // Pass a fresh MediaStream wrapper so React detects reference change
+      // and <video>/<audio> decoder immediately binds and renders!
+      this.onRemoteStream(peerId, new MediaStream(stream.getTracks()));
     };
 
     pc.onconnectionstatechange = () => {
@@ -134,16 +151,37 @@ class WebRTCManager {
       });
     }
 
+    // Always ensure both audio & video transceivers exist so remote media can be received
+    const transceivers = pc.getTransceivers();
+    const hasAudio = transceivers.some((t) => t.receiver.track.kind === 'audio');
+    const hasVideo = transceivers.some((t) => t.receiver.track.kind === 'video');
+
+    if (!hasAudio) {
+      pc.addTransceiver('audio', { direction: 'sendrecv' });
+    }
+    if (!hasVideo) {
+      pc.addTransceiver('video', { direction: 'sendrecv' });
+    }
+
     this.peers[peerId] = pc;
     return pc;
   }
 
   // ── Initiate call to a peer ───────────────────────────────────────────────
   async initiateCall(peerId) {
-    if (this.peers[peerId] && this.peers[peerId].connectionState === 'connected') {
-      console.log(`[WebRTC] Already connected to ${peerId.slice(0, 8)}, skipping initiateCall`);
+    const existingPc = this.peers[peerId];
+    if (existingPc && ['connected', 'connecting'].includes(existingPc.connectionState)) {
+      console.log(`[WebRTC] Already ${existingPc.connectionState} to ${peerId.slice(0, 8)}, skipping initiateCall`);
       return;
     }
+
+    // Debounce duplicate calls within 2 seconds
+    const now = Date.now();
+    if (this._lastCallAttempt[peerId] && now - this._lastCallAttempt[peerId] < 2000) {
+      console.log(`[WebRTC] Throttling call attempt to ${peerId.slice(0, 8)}`);
+      return;
+    }
+    this._lastCallAttempt[peerId] = now;
 
     console.log(`[WebRTC] Initiating call to ${peerId.slice(0, 8)}...`);
     try {
@@ -246,6 +284,90 @@ class WebRTCManager {
     }
   }
 
+  // ── Network Quality / Stats Monitor ───────────────────────────────────────
+  startStatsMonitor(onStatsUpdate) {
+    if (this._statsInterval) clearInterval(this._statsInterval);
+
+    this._statsInterval = setInterval(async () => {
+      const results = {};
+
+      for (const [peerId, pc] of Object.entries(this.peers)) {
+        if (!pc || pc.connectionState === 'closed') {
+          results[peerId] = { level: 0, rtt: null, lossRate: 0, status: 'offline' };
+          continue;
+        }
+
+        if (pc.connectionState !== 'connected') {
+          results[peerId] = { level: 0, rtt: null, lossRate: 0, status: pc.connectionState };
+          continue;
+        }
+
+        try {
+          const stats = await pc.getStats();
+          let rtt = null;
+          let packetsLost = 0;
+          let packetsReceived = 0;
+
+          stats.forEach((report) => {
+            // Check candidate pair for RTT
+            if (
+              report.type === 'candidate-pair' &&
+              (report.selected || report.nominated || report.state === 'succeeded')
+            ) {
+              if (report.currentRoundTripTime !== undefined) {
+                rtt = Math.round(report.currentRoundTripTime * 1000);
+              }
+            }
+            // Check inbound-rtp for packet loss
+            if (report.type === 'inbound-rtp') {
+              if (report.packetsLost !== undefined) packetsLost += report.packetsLost;
+              if (report.packetsReceived !== undefined) packetsReceived += report.packetsReceived;
+            }
+          });
+
+          const totalPackets = packetsLost + packetsReceived;
+          const lossRate = totalPackets > 0 ? (packetsLost / totalPackets) * 100 : 0;
+
+          // Determine quality level (0 to 3)
+          let level = 3; // Excellent
+          let status = 'Excellent';
+
+          if (rtt === null) {
+            level = 3;
+            rtt = 45;
+          } else if (rtt > 320 || lossRate > 8) {
+            level = 1; // Poor
+            status = 'Poor';
+          } else if (rtt > 160 || lossRate > 3) {
+            level = 2; // Fair
+            status = 'Fair';
+          } else {
+            level = 3; // Good
+            status = 'Good';
+          }
+
+          results[peerId] = {
+            level,
+            rtt,
+            lossRate: Math.round(lossRate * 10) / 10,
+            status,
+          };
+        } catch (e) {
+          results[peerId] = { level: 1, rtt: null, lossRate: 0, status: 'connecting' };
+        }
+      }
+
+      if (onStatsUpdate) onStatsUpdate(results);
+    }, 2500);
+  }
+
+  stopStatsMonitor() {
+    if (this._statsInterval) {
+      clearInterval(this._statsInterval);
+      this._statsInterval = null;
+    }
+  }
+
   // ── Replace a track across all peer connections (screen share / camera) ───
   replaceTrack(oldTrack, newTrack) {
     Object.values(this.peers).forEach((pc) => {
@@ -266,17 +388,20 @@ class WebRTCManager {
       delete this._pendingCandidates[peerId];
       delete this._makingOffer[peerId];
       delete this._remoteStreams[peerId];
+      delete this._lastCallAttempt[peerId];
       this.onRemoteStreamRemoved(peerId);
     }
   }
 
   // ── Remove all peers (on leave/end) ──────────────────────────────────────
   removeAllPeers() {
+    this.stopStatsMonitor();
     Object.keys(this.peers).forEach((id) => this.removePeer(id));
     this.peers = {};
     this._pendingCandidates = {};
     this._makingOffer = {};
     this._remoteStreams = {};
+    this._lastCallAttempt = {};
   }
 
   // ── Update local stream (e.g. device switch) ─────────────────────────────
